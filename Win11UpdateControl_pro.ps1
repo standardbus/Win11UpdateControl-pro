@@ -320,7 +320,7 @@ function New-StateSnapshot {
             $exported = Export-RegistryPath -RegistryPath $regPath
             $snapshot.RegistryExports += [pscustomobject]@{ Path = $regPath; Export = $exported }
         } catch {
-            Write-Log "Export registry fallito per $regPath: $($_.Exception.Message)" 'WARN'
+            Write-Log "Export registry fallito per ${regPath}: $($_.Exception.Message)" 'WARN'
         }
     }
 
@@ -593,7 +593,7 @@ function Resolve-Selections {
 
         $profileDef = Resolve-ProfileDefinition -Name $resolved.Profile
         $resolved.Modules = @($profileDef.Modules)
-        $resolved.Settings = [ordered]$profileDef.Settings
+        $resolved.Settings = $profileDef.Settings
         if ($TargetReleaseVersion) { $resolved.Settings.TargetReleaseVersion = $TargetReleaseVersion }
     }
 
