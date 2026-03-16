@@ -56,6 +56,8 @@ $script:LogDir = Join-Path $StateRoot 'logs'
 $script:PresetDir = Join-Path $StateRoot 'presets'
 $script:LogFile = Join-Path $script:LogDir ("run_{0:yyyyMMdd_HHmmss}.log" -f (Get-Date))
 $script:UseInteractive = -not $PSBoundParameters.ContainsKey('ScriptAction')
+$script:UseImportedPreset = $false
+$script:SelectedExportPresetPath = $null
 $script:OperationResults = New-Object System.Collections.Generic.List[object]
 
 $script:ModuleCatalog = [ordered]@{
@@ -348,7 +350,7 @@ function New-StateSnapshot {
         catch { Write-Log "Task $taskRef non trovato durante snapshot" 'WARN' }
     }
 
-    if (Test-Path -LiteralPath $script:UsoClientPath -or Test-Path -LiteralPath $script:UsoClientBlockedPath) {
+    if ((Test-Path -LiteralPath $script:UsoClientPath) -or (Test-Path -LiteralPath $script:UsoClientBlockedPath)) {
         $snapshot.Files += [pscustomobject]@{
             Original = $script:UsoClientPath
             Blocked  = $script:UsoClientBlockedPath
