@@ -66,7 +66,7 @@ The tool provides **preconfigured profiles**, **modular components**, and a soli
 From an elevated PowerShell (Run as Administrator):
 
 ```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force; irm "https://raw.githubusercontent.com/standardbus/win11-update-control/main/Win11UpdateControl_pro.ps1" | iex
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force; irm "https://raw.githubusercontent.com/standardbus/Win11UpdateControl-pro/main/Win11UpdateControl_pro.ps1" | iex
 ```
 
 This temporarily sets the Execution Policy to `Bypass` for the current process only, then downloads and runs the script from GitHub using `irm | iex`.
@@ -77,7 +77,7 @@ This temporarily sets the Execution Policy to `Bypass` for the current process o
 
    ```powershell
    # Example using Invoke-WebRequest
-   Invoke-WebRequest -Uri "https://raw.githubusercontent.com/standardbus/win11-update-control/main/Win11UpdateControl_pro.ps1" -OutFile "Win11UpdateControl.ps1"
+   Invoke-WebRequest -Uri "https://raw.githubusercontent.com/standardbus/Win11UpdateControl-pro/main/Win11UpdateControl_pro.ps1" -OutFile "Win11UpdateControl.ps1"
    ```
 
 2. Start PowerShell as **Administrator**.
