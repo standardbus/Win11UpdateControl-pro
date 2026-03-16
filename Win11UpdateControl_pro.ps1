@@ -61,18 +61,18 @@ $script:SelectedExportPresetPath = $null
 $script:OperationResults = New-Object System.Collections.Generic.List[object]
 
 $script:ModuleCatalog = [ordered]@{
-    RebootPolicy          = 'Policy anti-riavvio automatico e active hours'
-    RebootTasks           = 'Disabilita task reboot di UpdateOrchestrator'
-    UpdatePolicy          = 'Configura comportamento Windows Update'
-    UpdateServices        = 'Gestisce servizi Windows Update / BITS / Medic / Orchestrator'
-    DriverUpdates         = 'Blocca driver update via Windows Update'
-    FeatureUpdates        = 'Congela feature update / target release version'
-    StoreAutoUpdate       = 'Disabilita auto-update Microsoft Store'
-    DeliveryOptimization  = 'Disabilita Delivery Optimization'
-    AutomaticMaintenance  = 'Riduce/disabilita manutenzione automatica'
-    DefenderControl       = 'Controllo selettivo di Defender lato task/politiche leggere'
-    UsoClientRename       = 'Rinomina UsoClient.exe (opzione estrema)'
-    ServiceAclLockdown    = 'Applica sdset ai servizi update (opzione esperta)'
+    RebootPolicy          = 'Anti-automatic-reboot policy and active hours'
+    RebootTasks           = 'Disable UpdateOrchestrator reboot tasks'
+    UpdatePolicy          = 'Configure Windows Update behavior'
+    UpdateServices        = 'Manage Windows Update / BITS / Medic / Orchestrator services'
+    DriverUpdates         = 'Block driver updates via Windows Update'
+    FeatureUpdates        = 'Freeze feature updates / target release version'
+    StoreAutoUpdate       = 'Disable Microsoft Store auto-update'
+    DeliveryOptimization  = 'Disable Delivery Optimization'
+    AutomaticMaintenance  = 'Reduce/disable automatic maintenance'
+    DefenderControl       = 'Selective Defender control (tasks/lightweight policies)'
+    UsoClientRename       = 'Rename UsoClient.exe (extreme option)'
+    ServiceAclLockdown    = 'Apply sdset to update services (expert option)'
 }
 
 $script:ServiceList = @('wuauserv','UsoSvc','WaaSMedicSvc','BITS')
@@ -159,7 +159,7 @@ function Ensure-Admin {
     if (Test-IsAdmin) { return }
 
     if ($script:UseInteractive) {
-        Write-Host 'Richiesti privilegi amministrativi. Tentativo di ri-esecuzione elevata...' -ForegroundColor Yellow
+        Write-Host 'Administrator privileges required. Attempting elevated re-execution...' -ForegroundColor Yellow
         $argList = @('-NoProfile','-ExecutionPolicy','Bypass','-File',"`"$PSCommandPath`"")
         foreach ($kvp in $PSBoundParameters.GetEnumerator()) {
             $key = "-$($kvp.Key)"
@@ -177,7 +177,7 @@ function Ensure-Admin {
         exit
     }
 
-    throw 'Eseguire lo script come amministratore.'
+    throw 'Please run this script as Administrator.'
 }
 
 function Invoke-Safely {
@@ -189,12 +189,12 @@ function Invoke-Safely {
 
     try {
         & $ScriptBlock
-        Add-Result -Area $Area -Name $Name -Status 'OK' -Detail 'Completato'
-        Write-Log "$Area :: $Name completato" 'OK'
+        Add-Result -Area $Area -Name $Name -Status 'OK' -Detail 'Completed'
+        Write-Log "$Area :: $Name completed" 'OK'
     }
     catch {
         Add-Result -Area $Area -Name $Name -Status 'ERROR' -Detail $_.Exception.Message
-        Write-Log "$Area :: $Name fallito - $($_.Exception.Message)" 'ERROR'
+        Write-Log "$Area :: $Name failed - $($_.Exception.Message)" 'ERROR'
         if (-not $Force) { throw }
     }
 }
@@ -288,7 +288,7 @@ function Save-State {
 
 function Load-State {
     if (-not (Test-Path -LiteralPath $script:StateFile)) {
-        throw "Nessun file di stato trovato in $script:StateFile"
+        throw "No state file found at $script:StateFile"
     }
     return Get-Content -Path $script:StateFile -Raw | ConvertFrom-Json -Depth 10
 }
@@ -301,7 +301,7 @@ function Save-PresetFile {
 
 function Load-PresetFile {
     param([Parameter(Mandatory)][string]$Path)
-    if (-not (Test-Path -LiteralPath $Path)) { throw "Preset non trovato: $Path" }
+    if (-not (Test-Path -LiteralPath $Path)) { throw "Preset not found: $Path" }
     return Get-Content -Path $Path -Raw | ConvertFrom-Json -Depth 10
 }
 
@@ -322,7 +322,7 @@ function New-StateSnapshot {
             $exported = Export-RegistryPath -RegistryPath $regPath
             $snapshot.RegistryExports += [pscustomobject]@{ Path = $regPath; Export = $exported }
         } catch {
-            Write-Log "Export registry fallito per ${regPath}: $($_.Exception.Message)" 'WARN'
+            Write-Log "Registry export failed for ${regPath}: $($_.Exception.Message)" 'WARN'
         }
     }
 
@@ -338,16 +338,16 @@ function New-StateSnapshot {
                 $sddl = (& sc.exe sdshow $svc) -join ''
                 if ($sddl) { $snapshot.Sddl += [pscustomobject]@{ Name = $svc; Value = $sddl.Trim() } }
             } catch {
-                Write-Log "Backup SDDL fallito per $svc" 'WARN'
+                Write-Log "SDDL backup failed for $svc" 'WARN'
             }
         } catch {
-            Write-Log "Servizio $svc non trovato durante snapshot" 'WARN'
+            Write-Log "Service $svc not found during snapshot" 'WARN'
         }
     }
 
     foreach ($taskRef in ($script:RebootTasks + $script:MaintenanceTasks + $script:DefenderTasks)) {
         try { $snapshot.Tasks += Get-ScheduledTaskStateSafe -TaskPathFull $taskRef }
-        catch { Write-Log "Task $taskRef non trovato durante snapshot" 'WARN' }
+        catch { Write-Log "Task $taskRef not found during snapshot" 'WARN' }
     }
 
     if ((Test-Path -LiteralPath $script:UsoClientPath) -or (Test-Path -LiteralPath $script:UsoClientBlockedPath)) {
@@ -364,18 +364,18 @@ function New-StateSnapshot {
 
 function New-SystemRestorePointSafe {
     if ($SkipRestorePoint) {
-        Write-Log 'Creazione restore point saltata su richiesta.' 'WARN'
+        Write-Log 'Restore point creation skipped as requested.' 'WARN'
         return
     }
 
     try { Enable-ComputerRestore -Drive "$($env:SystemDrive)\" -ErrorAction Stop }
-    catch { Write-Log 'Enable-ComputerRestore non disponibile o già attivo.' 'WARN' }
+    catch { Write-Log 'Enable-ComputerRestore not available or already enabled.' 'WARN' }
 
     try {
         Checkpoint-Computer -Description 'Win11UpdateControl pre-change' -RestorePointType 'MODIFY_SETTINGS' -ErrorAction Stop
-        Write-Log 'Punto di ripristino creato.' 'OK'
+        Write-Log 'Restore point created.' 'OK'
     } catch {
-        Write-Log "Impossibile creare il restore point: $($_.Exception.Message)" 'WARN'
+        Write-Log "Unable to create restore point: $($_.Exception.Message)" 'WARN'
     }
 }
 
@@ -452,7 +452,7 @@ function Show-MenuHeader {
     Clear-Host
     Write-Host ''
     Write-Host 'Win11 Update Control v3' -ForegroundColor Cyan
-    Write-Host 'Framework modulare per controllo update / reboot / hardening leggero'
+    Write-Host 'Modular framework for update / reboot / lightweight hardening control'
     Write-Host ''
 }
 
@@ -466,13 +466,13 @@ function Read-Choice {
 
 function Initialize-SelectionsInteractive {
     Show-MenuHeader
-    Write-Host '1 = Apply preset o configurazione custom'
-    Write-Host '2 = Restore configurazione precedente'
+    Write-Host '1 = Apply preset or custom configuration'
+    Write-Host '2 = Restore previous configuration'
     Write-Host '3 = Status / audit'
-    Write-Host '4 = Applica preset JSON'
+    Write-Host '4 = Apply JSON preset'
     Write-Host ''
 
-    $selection = Read-Choice -Prompt 'Seleziona azione' -Allowed @('1','2','3','4')
+    $selection = Read-Choice -Prompt 'Select action' -Allowed @('1','2','3','4')
     switch ($selection) {
         '1' { $script:SelectedAction = 'Apply' }
         '2' { $script:SelectedAction = 'Restore' }
@@ -482,12 +482,12 @@ function Initialize-SelectionsInteractive {
 
     if ($script:SelectedAction -eq 'Apply') {
         if ($script:UseImportedPreset) {
-            $script:SelectedImportPresetPath = Read-Host 'Percorso preset JSON da importare'
+            $script:SelectedImportPresetPath = Read-Host 'Path to JSON preset to import'
             return
         }
 
         Write-Host ''
-        Write-Host 'Preset disponibili:'
+        Write-Host 'Available presets:'
         Write-Host '1 = SafeDesktop'
         Write-Host '2 = ControlledDesktop'
         Write-Host '3 = WorkstationStable'
@@ -495,7 +495,7 @@ function Initialize-SelectionsInteractive {
         Write-Host '5 = ExtremeAirgapped'
         Write-Host '6 = Custom'
         Write-Host ''
-        $profileSelection = Read-Choice -Prompt 'Seleziona profilo' -Allowed @('1','2','3','4','5','6')
+        $profileSelection = Read-Choice -Prompt 'Select profile' -Allowed @('1','2','3','4','5','6')
         switch ($profileSelection) {
             '1' { $script:SelectedProfile = 'SafeDesktop' }
             '2' { $script:SelectedProfile = 'ControlledDesktop' }
@@ -507,19 +507,19 @@ function Initialize-SelectionsInteractive {
 
         if ($script:SelectedProfile -eq 'Custom') {
             Write-Host ''
-            Write-Host 'Moduli disponibili:'
+            Write-Host 'Available modules:'
             $index = 1
             $keys = @($script:ModuleCatalog.Keys)
             foreach ($key in $keys) { Write-Host ("{0} = {1} - {2}" -f $index, $key, $script:ModuleCatalog[$key]); $index++ }
             Write-Host ''
-            $customModulesRaw = Read-Host 'Inserisci i numeri dei moduli separati da virgola'
+            $customModulesRaw = Read-Host 'Enter module numbers separated by comma'
             $selected = @()
             foreach ($item in ($customModulesRaw -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })) {
                 $pos = [int]$item - 1
                 if ($pos -ge 0 -and $pos -lt $keys.Count) { $selected += $keys[$pos] }
             }
             $script:SelectedModules = $selected | Select-Object -Unique
-            if (-not $script:SelectedModules) { throw 'Nessun modulo selezionato.' }
+            if (-not $script:SelectedModules) { throw 'No modules selected.' }
 
             $script:SelectedUpdateMode = Read-Host 'Update mode (Default/Off/NotifyDownload/ManualOnly) [NotifyDownload]'; if (-not $script:SelectedUpdateMode) { $script:SelectedUpdateMode = 'NotifyDownload' }
             $script:SelectedDriverUpdateMode = Read-Host 'Driver updates (Default/Disable) [Default]'; if (-not $script:SelectedDriverUpdateMode) { $script:SelectedDriverUpdateMode = 'Default' }
@@ -528,18 +528,18 @@ function Initialize-SelectionsInteractive {
             $script:SelectedFeatureUpdateMode = Read-Host 'Feature Updates (Default/Freeze) [Default]'; if (-not $script:SelectedFeatureUpdateMode) { $script:SelectedFeatureUpdateMode = 'Default' }
             $script:SelectedDefenderMode = Read-Host 'Defender (Untouched/SignatureOnly/DisableScheduledTasks) [Untouched]'; if (-not $script:SelectedDefenderMode) { $script:SelectedDefenderMode = 'Untouched' }
             $script:SelectedMaintenanceMode = Read-Host 'Automatic Maintenance (Default/Disable) [Default]'; if (-not $script:SelectedMaintenanceMode) { $script:SelectedMaintenanceMode = 'Default' }
-            $script:SelectedTargetReleaseVersion = Read-Host 'Target release version (es. 24H2, opzionale)'
-            $script:SelectedDisableServices = ((Read-Host 'Disabilitare servizi update? (s/n) [n]') -match '^[sSyY]$')
-            $script:SelectedRenameUsoClient = ((Read-Host 'Rinominare UsoClient.exe? (s/n) [n]') -match '^[sSyY]$')
-            $script:SelectedUseServiceAclLockdown = ((Read-Host 'Applicare sdset ai servizi? (s/n) [n]') -match '^[sSyY]$')
+            $script:SelectedTargetReleaseVersion = Read-Host 'Target release version (e.g. 24H2, optional)'
+            $script:SelectedDisableServices = ((Read-Host 'Disable update services? (y/n) [n]') -match '^[sSyY]$')
+            $script:SelectedRenameUsoClient = ((Read-Host 'Rename UsoClient.exe? (y/n) [n]') -match '^[sSyY]$')
+            $script:SelectedUseServiceAclLockdown = ((Read-Host 'Apply sdset to services? (y/n) [n]') -match '^[sSyY]$')
         }
 
-        $script:SelectedCreateRestorePoint = ((Read-Host 'Creare restore point prima di applicare? (s/n) [s]') -notmatch '^[nN]$')
-        $shouldExport = ((Read-Host 'Esportare anche un preset JSON di questa configurazione? (s/n) [n]') -match '^[sSyY]$')
+        $script:SelectedCreateRestorePoint = ((Read-Host 'Create restore point before applying? (y/n) [y]') -notmatch '^[nN]$')
+        $shouldExport = ((Read-Host 'Also export a JSON preset of this configuration? (y/n) [n]') -match '^[sSyY]$')
         if ($shouldExport) {
             Ensure-Directory -Path $script:PresetDir
             $defaultPreset = Join-Path $script:PresetDir ("preset_{0:yyyyMMdd_HHmmss}.json" -f (Get-Date))
-            $script:SelectedExportPresetPath = Read-Host "Percorso preset JSON [$defaultPreset]"
+            $script:SelectedExportPresetPath = Read-Host "JSON preset path [$defaultPreset]"
             if (-not $script:SelectedExportPresetPath) { $script:SelectedExportPresetPath = $defaultPreset }
         }
     }
@@ -590,8 +590,8 @@ function Resolve-Selections {
     }
 
     if ($resolved.Action -eq 'Apply') {
-        if (-not $resolved.Profile) { throw 'Profile obbligatorio per Action=Apply.' }
-        if ($resolved.Profile -eq 'Custom' -and -not $Modules) { throw 'Per Custom devi specificare almeno un modulo.' }
+        if (-not $resolved.Profile) { throw 'Profile is required for Action=Apply.' }
+        if ($resolved.Profile -eq 'Custom' -and -not $Modules) { throw 'Custom profile requires at least one module.' }
 
         $profileDef = Resolve-ProfileDefinition -Name $resolved.Profile
         $resolved.Modules = @($profileDef.Modules)
@@ -651,7 +651,7 @@ function Apply-UpdatePolicy {
 
 function Apply-UpdateServices {
     param([Parameter(Mandatory)][bool]$Disable)
-    if (-not $Disable) { Write-Log 'Modulo UpdateServices selezionato ma DisableServices=false: nessuna modifica ai servizi.' 'WARN'; return }
+    if (-not $Disable) { Write-Log 'UpdateServices module selected but DisableServices=false: no changes to services.' 'WARN'; return }
     foreach ($svc in $script:ServiceList) {
         Invoke-Safely -Area 'Services' -Name "Stop/disable $svc" -ScriptBlock {
             try { Stop-Service -Name $svc -Force -ErrorAction Stop } catch {}
@@ -734,9 +734,9 @@ function Apply-AutomaticMaintenance {
 function Apply-DefenderControl {
     param([Parameter(Mandatory)][string]$Mode)
     switch ($Mode) {
-        'Untouched' { Write-Log 'Defender lasciato invariato.' 'INFO' }
+        'Untouched' { Write-Log 'Defender left unchanged.' 'INFO' }
         'SignatureOnly' {
-            Write-Log 'Defender: tentativo di mantenere solo la componente leggera, lasciando gli aggiornamenti firme non toccati.' 'INFO'
+            Write-Log 'Defender: keeping lightweight component only, signature updates left untouched.' 'INFO'
             foreach ($taskRef in @('\Microsoft\Windows\Windows Defender\Windows Defender Scheduled Scan')) {
                 Invoke-Safely -Area 'Tasks' -Name "Disable $taskRef" -ScriptBlock { Set-TaskEnabledSafe -TaskPathFull $taskRef -Enabled $false }
             }
@@ -751,7 +751,7 @@ function Apply-DefenderControl {
 
 function Apply-UsoClientRename {
     param([Parameter(Mandatory)][bool]$Enabled)
-    if (-not $Enabled) { Write-Log 'RenameUsoClient non abilitato: salto.' 'WARN'; return }
+    if (-not $Enabled) { Write-Log 'RenameUsoClient not enabled: skipping.' 'WARN'; return }
     Invoke-Safely -Area 'Files' -Name 'Rename UsoClient.exe' -ScriptBlock {
         if (Test-Path -LiteralPath $script:UsoClientPath) {
             & takeown.exe /f $script:UsoClientPath | Out-Null
@@ -763,7 +763,7 @@ function Apply-UsoClientRename {
 
 function Apply-ServiceAclLockdown {
     param([Parameter(Mandatory)][bool]$Enabled)
-    if (-not $Enabled) { Write-Log 'ServiceAclLockdown non abilitato: salto.' 'WARN'; return }
+    if (-not $Enabled) { Write-Log 'ServiceAclLockdown not enabled: skipping.' 'WARN'; return }
     foreach ($svc in @('wuauserv','UsoSvc','WaaSMedicSvc')) {
         Invoke-Safely -Area 'Security' -Name "sdset $svc" -ScriptBlock { & sc.exe sdset $svc 'D:(D;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;SY)' | Out-Null }
     }
@@ -901,7 +901,7 @@ function Show-Status {
 function Show-OperationSummary {
     if (-not $script:OperationResults.Count) { return }
     Write-Host ''
-    Write-Host '=== RIEPILOGO OPERAZIONI ===' -ForegroundColor Cyan
+    Write-Host '=== OPERATION SUMMARY ===' -ForegroundColor Cyan
     $script:OperationResults | Format-Table -AutoSize
     Write-Host ''
     Write-Host "Log: $script:LogFile"
@@ -919,8 +919,8 @@ try {
     Ensure-Admin
 
     $resolved = Resolve-Selections
-    Write-Log "Azione: $($resolved.Action)" 'INFO'
-    if ($resolved.Profile) { Write-Log "Profilo: $($resolved.Profile)" 'INFO' }
+    Write-Log "Action: $($resolved.Action)" 'INFO'
+    if ($resolved.Profile) { Write-Log "Profile: $($resolved.Profile)" 'INFO' }
 
     if ($resolved.ExportPresetPath) {
         $preset = [ordered]@{
@@ -930,7 +930,7 @@ try {
             Settings = $resolved.Settings
         }
         Save-PresetFile -Path $resolved.ExportPresetPath -Preset $preset
-        Write-Log "Preset esportato in $($resolved.ExportPresetPath)" 'OK'
+        Write-Log "Preset exported to $($resolved.ExportPresetPath)" 'OK'
     }
 
     switch ($resolved.Action) {
@@ -944,7 +944,7 @@ try {
                 Settings = $resolved.Settings
             }
             Save-State -State $snapshot
-            Write-Log 'Snapshot iniziale salvato.' 'OK'
+            Write-Log 'Initial snapshot saved.' 'OK'
 
             foreach ($module in $resolved.Modules) {
                 switch ($module) {
@@ -964,12 +964,12 @@ try {
                     'DefenderControl'      { Apply-DefenderControl -Mode $resolved.Settings.DefenderMode }
                     'UsoClientRename'      { Apply-UsoClientRename -Enabled ([bool]$resolved.Settings.RenameUsoClient) }
                     'ServiceAclLockdown'   { Apply-ServiceAclLockdown -Enabled ([bool]$resolved.Settings.UseServiceAclLockdown) }
-                    default                { Write-Log "Modulo sconosciuto: $module" 'WARN' }
+                    default                { Write-Log "Unknown module: $module" 'WARN' }
                 }
             }
 
             Invoke-Safely -Area 'System' -Name 'Final shutdown abort' -ScriptBlock { & shutdown.exe /a 2>$null | Out-Null }
-            Write-Log 'Applicazione completata.' 'OK'
+            Write-Log 'Apply completed.' 'OK'
         }
         'Restore' {
             $state = Load-State
@@ -978,13 +978,13 @@ try {
             Restore-TasksFromState -State $state
             Restore-ServiceAclFromState -State $state
             Restore-FilesFromState -State $state
-            Write-Log 'Ripristino completato.' 'OK'
+            Write-Log 'Restore completed.' 'OK'
         }
         'Status' { Show-Status }
     }
 }
 catch {
-    Write-Log "Errore fatale: $($_.Exception.Message)" 'ERROR'
+    Write-Log "Fatal error: $($_.Exception.Message)" 'ERROR'
     throw
 }
 finally {
