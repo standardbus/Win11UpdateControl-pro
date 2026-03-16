@@ -1,7 +1,7 @@
 [CmdletBinding(SupportsShouldProcess = $true)]
 param(
     [ValidateSet('Apply','Restore','Status')]
-    [string]$Action,
+    [string]$ScriptAction,
 
     [ValidateSet('SafeDesktop','ControlledDesktop','WorkstationStable','KioskLab','ExtremeAirgapped','Custom')]
     [string]$Profile,
@@ -55,7 +55,7 @@ $script:RegistryBackupDir = Join-Path $StateRoot 'registry'
 $script:LogDir = Join-Path $StateRoot 'logs'
 $script:PresetDir = Join-Path $StateRoot 'presets'
 $script:LogFile = Join-Path $script:LogDir ("run_{0:yyyyMMdd_HHmmss}.log" -f (Get-Date))
-$script:UseInteractive = -not $PSBoundParameters.ContainsKey('Action')
+$script:UseInteractive = -not $PSBoundParameters.ContainsKey('ScriptAction')
 $script:OperationResults = New-Object System.Collections.Generic.List[object]
 
 $script:ModuleCatalog = [ordered]@{
@@ -546,9 +546,9 @@ function Initialize-SelectionsInteractive {
 function Resolve-Selections {
     if ($script:UseInteractive) {
         Initialize-SelectionsInteractive
-        $Action = $script:SelectedAction
+        $ScriptAction = $script:SelectedAction
         if ($script:UseImportedPreset) { $ImportPresetPath = $script:SelectedImportPresetPath }
-        if ($Action -eq 'Apply' -and -not $script:UseImportedPreset) {
+        if ($ScriptAction -eq 'Apply' -and -not $script:UseImportedPreset) {
             $Profile = $script:SelectedProfile
             if ($Profile -eq 'Custom') {
                 $Modules = $script:SelectedModules
@@ -570,7 +570,7 @@ function Resolve-Selections {
     }
 
     $resolved = [ordered]@{
-        Action = $Action
+        Action = $ScriptAction
         Profile = $Profile
         Modules = @()
         Settings = [ordered]@{}
